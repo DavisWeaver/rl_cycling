@@ -1,7 +1,8 @@
 
 #Figure that looks at policies for a given agent
 prep_performance_overview <- function(N=5, landscapes = "random", files = NULL, 
-                                      lr_range= NULL, noise_exp = FALSE, policy_exists = TRUE, dir = "results") {
+                                      lr_range= NULL, noise_exp = FALSE, 
+                                      policy_exists = TRUE, dir = "results") {
   
   
   add_filestring_vars <- function(file, df, noise_exp = FALSE) {
@@ -12,6 +13,7 @@ prep_performance_overview <- function(N=5, landscapes = "random", files = NULL,
     df$replicate <- str_extract(file, paste0("(?<=", train_input,")\\d+"))
     df$totalres <- str_detect(file, "totalres")
     df$quadmut <- str_detect(file, "quadmut")
+    df$N <- str_extract(file, "(?<=N)\\d+")
     
     if(noise_exp) {
       df$noise_modifier <- str_extract(file, "(?<=M)\\d+")
@@ -36,7 +38,13 @@ prep_performance_overview <- function(N=5, landscapes = "random", files = NULL,
     }
     
     if(landscapes == "mira") {
-      df$reset <- str_extract(files[i], "(?<=reset)\\d+")
+      df$reset <- str_extract(file, "(?<=reset)\\d+")
+      df$replicate_mod <- str_extract(file, "(?<=mira)\\d+")
+    }
+    
+    if(landscapes == "delay") {
+      df$delay <- str_extract(file, "(?<=delay)\\d+")
+      df$reset <- str_extract(file, "(?<=reset)\\d+") #dumb to have copy pasted stuff but w/e I did the delay exp in the mira landscapes
       df$replicate_mod <- str_extract(file, "(?<=mira)\\d+")
     }
     return(df)
@@ -155,6 +163,41 @@ prep_results <- function(total_eps = 500, N = 4, landscapes = "mira", policy_exi
   return(df)
 }
 
+prep_delay <- function(total_eps=500) {
+  out <- prep_performance_overview(landscapes = "delay", dir = "delay_test", policy_exists= FALSE)
+  df <- out[[1]] %>% filter(!is.na(replicate), 
+                            condition != "evodm" | ep_number > total_eps) %>%
+    dplyr::mutate(episode = ifelse(ep_number>total_eps, ep_number-total_eps, ep_number))
+  df <- df %>% 
+    mutate(condition = ifelse(condition == "evodm", "evodm_sv", condition))
+  
+  df <- df  %>% 
+    group_by(replicate, condition, delay) %>% 
+    summarise(fitness = mean(average_fitness))# %>% 
+ 
+  df <- df %>% mutate(delay = as.numeric(delay))
+  return(df)
+}
+prep_N_sweep <- function(total_eps=500, update=FALSE) {
+  #function to prepare line plot of performance by N
+  
+  out <- prep_performance_overview(landscapes = "random", dir = "N_sweep", policy_exists= FALSE)
+  df <- out[[1]] %>% filter(!is.na(replicate), 
+                            condition != "evodm" | ep_number > total_eps) %>%
+    dplyr::mutate(episode = ifelse(ep_number>total_eps, ep_number-total_eps, ep_number))
+  
+  df <- df %>% 
+    filter((train_input != "sv" | train_input == "sv" & condition == "evodm")) %>% 
+    mutate(condition = ifelse(train_input == "sv", "evodm_sv", condition))
+  
+  df <- df  %>% 
+    group_by(replicate, condition, quadmut, totalres, N) %>% 
+    summarise(fitness = mean(average_fitness))# %>%
+ 
+  
+  df <- df %>% mutate(N = as.numeric(N))
+  return(df)
+}
 
 prep_mira_heatmap <- function(total_eps = 500, update = FALSE, noise_exp= FALSE, do_clustering=FALSE) {
   if(noise_exp) {
@@ -350,10 +393,6 @@ prep_mira_heatmap <- function(total_eps = 500, update = FALSE, noise_exp= FALSE,
   
   return(out)
   #now compute 
-}
-
-cluster_trajectory <- function(df) {
-  
 }
 
 #Function to cluster policies

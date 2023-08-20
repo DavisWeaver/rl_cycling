@@ -655,6 +655,7 @@ mira_traversal_plot2 <- function(out) {
   plot_grid(g1a,g1b,g1c,g3)
 }
 
+
 ########Policy Networks figure############
 plot_policy_networks <- function(out) {
   joint_prob = out[[6]]
@@ -752,6 +753,26 @@ plot_opt_policy <- function(out) {
   return(g)
 }
 
+complexity_plots <- function() {
+  df <- prep_N_sweep(total_eps=500)
+  
+  g1 <- ggplot(df, aes(x=N, y = fitness, color = condition)) + geom_point() + 
+    geom_line(data = df %>% group_by(N, condition) %>% summarise(fitness = mean(fitness))) +
+    theme(text = element_text(size=20)) + 
+    scale_color_discrete(labels = c("RL_fit", "RL_genotype", "random", "MDP")) + 
+    labs(tag = "A")
+  
+  df <- prep_delay(total_eps=500)
+  g2 <- ggplot(df, aes(x=delay, y = fitness, color= condition)) + geom_point() + 
+    geom_line(data = df %>% group_by(delay, condition) %>% summarise(fitness = mean(fitness))) +
+    theme(text = element_text(size=20)) + 
+    scale_color_discrete(labels = c("RL_genotype", "random", "MDP")) +
+    labs(tag = "B")
+  
+  g <- plot_grid(g1,g2)
+  return(g)
+
+}
 ################hyperparameter tuning######################
 
 ###gamma, batch size, lr, update_target_every all need to be represented here
@@ -961,8 +982,15 @@ png(filename = here("figs", "mira_mdp_sweep.png"),
 plot_mira_mdp()
 dev.off()
 
-#hyper-parameter tuning
-png(filename = here("figs", "hp_tune_plot.png"), 
-    width = 1000, height = 600)
-plot_hp_tune()
+# #hyper-parameter tuning
+# png(filename = here("figs", "hp_tune_plot.png"), 
+#     width = 1000, height = 600)
+# plot_hp_tune()
+# dev.off()
+
+#Complexity Plots
+png(filename = here("figs", "complexity_plots.png"), 
+    width = 1000, height = 400)
+complexity_plots()
 dev.off()
+
